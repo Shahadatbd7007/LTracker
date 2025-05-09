@@ -1,4 +1,12 @@
-<!DOCTYPE html>
+from zipfile import ZipFile
+import os
+
+# Create directory structure
+project_dir = "/mnt/data/live_team_tracker"
+os.makedirs(project_dir, exist_ok=True)
+
+# index.html content (updated)
+html_content = """<!DOCTYPE html>
 <html>
 <head>
   <title>Live Team Tracker</title>
@@ -145,3 +153,31 @@
 
 </body>
 </html>
+"""
+
+# README with setup instructions
+readme_content = """Live Team Tracker - Setup Guide
+
+1. This app uses Firebase Realtime Database + Leaflet.js.
+2. To host it:
+   - Use GitHub Pages or Firebase Hosting.
+3. Firebase Setup:
+   - Your config is already inside index.html
+   - Make sure Realtime Database is enabled.
+4. Open index.html in browser or deploy online.
+"""
+
+# Save files
+with open(os.path.join(project_dir, "index.html"), "w", encoding="utf-8") as f:
+    f.write(html_content)
+
+with open(os.path.join(project_dir, "README.txt"), "w", encoding="utf-8") as f:
+    f.write(readme_content)
+
+# Create zip
+zip_path = "/mnt/data/live_team_tracker.zip"
+with ZipFile(zip_path, 'w') as zipf:
+    zipf.write(os.path.join(project_dir, "index.html"), arcname="index.html")
+    zipf.write(os.path.join(project_dir, "README.txt"), arcname="README.txt")
+
+zip_path
