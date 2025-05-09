@@ -1,183 +1,40 @@
-from zipfile import ZipFile
-import os
-
-# Create directory structure
-project_dir = "/mnt/data/live_team_tracker"
-os.makedirs(project_dir, exist_ok=True)
-
-# index.html content (updated)
-html_content = """<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
-  <title>Live Team Tracker</title>
+  <title>Live Location Tracker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    html, body { height: 100%; margin: 0; font-family: Arial; }
+    html, body { height: 100%; margin: 0; }
     #map { height: 100%; }
-    #overlay {
-      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.85); color: white; z-index: 1000;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-    }
-    input, button {
-      padding: 10px; margin-top: 10px; font-size: 16px;
-    }
   </style>
 </head>
 <body>
 
-<div id="overlay">
-  <h2>আপনার নাম লিখুন</h2>
-  <input type="text" id="username" placeholder="যেমনঃ রাহুল">
-  <button onclick="startTracking()">Start Tracking</button>
-</div>
-
 <div id="map"></div>
 
-<!-- Leaflet -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-database.js"></script>
-
 <script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyAgS3DO8yFpB5gp2eIiyZ8KjZMLgU3S6H4",
-    authDomain: "map-api-project-ff783.firebaseapp.com",
-    projectId: "map-api-project-ff783",
-    storageBucket: "map-api-project-ff783.firebasestorage.app",
-    messagingSenderId: "953800442877",
-    appId: "1:953800442877:web:d0780767b4e66a0e330f94",
-    measurementId: "G-JNZZ7R6GPE",
-    databaseURL: "https://map-api-project-ff783-default-rtdb.firebaseio.com"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+  const map = L.map('map').setView([23.8103, 90.4125], 13); // ঢাকা
 
-  const uid = 'user_' + Math.floor(Math.random() * 100000);
-  let map, userName = '', myLocation = null;
-  const markers = {};
+  // ফ্রি ম্যাপ লেয়ার
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
 
-  function formatTime(ms) {
-    const d = new Date(ms);
-    return d.toLocaleTimeString();
-  }
-
-  function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a =
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  }
-
-  function startTracking() {
-    const input = document.getElementById("username");
-    if (!input.value.trim()) {
-      alert("নাম লিখুন");
-      return;
-    }
-    userName = input.value.trim();
-    document.getElementById("overlay").style.display = "none";
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        myLocation = { lat, lng };
-        initMap(lat, lng);
-        updateLocation(lat, lng);
-        listenForOthers();
-      });
-
-      navigator.geolocation.watchPosition((pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        myLocation = { lat, lng };
-        updateLocation(lat, lng);
-      });
-    } else {
-      alert("আপনার ব্রাউজার লোকেশন সাপোর্ট করে না");
-    }
-  }
-
-  function initMap(lat, lng) {
-    map = L.map('map').setView([lat, lng], 15);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
-  }
-
-  function updateLocation(lat, lng) {
-    const timestamp = Date.now();
-    db.ref("users/" + uid).set({
-      name: userName,
-      location: { lat, lng },
-      time: timestamp
+  // নিজের লোকেশন দেখানো
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function(position) {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const marker = L.marker([lat, lng]).addTo(map);
+      marker.bindPopup("আপনার অবস্থান").openPopup();
+      map.setView([lat, lng], 15);
     });
-  }
-
-  function listenForOthers() {
-    db.ref("users").on("value", (snapshot) => {
-      const data = snapshot.val();
-      if (!data) return;
-
-      for (const id in data) {
-        const user = data[id];
-        const loc = user.location;
-        const time = user.time;
-
-        let popupText = `${user.name}<br>Updated: ${formatTime(time)}`;
-
-        if (id !== uid && myLocation) {
-          const dist = calculateDistance(myLocation.lat, myLocation.lng, loc.lat, loc.lng);
-          popupText += `<br>Distance: ${dist.toFixed(2)} km`;
-        }
-
-        if (markers[id]) {
-          markers[id].setLatLng([loc.lat, loc.lng]).setPopupContent(popupText);
-        } else {
-          markers[id] = L.marker([loc.lat, loc.lng]).addTo(map)
-            .bindPopup(popupText);
-        }
-      }
-    });
+  } else {
+    alert("আপনার ব্রাউজার লোকেশন সাপোর্ট করে না।");
   }
 </script>
 
 </body>
 </html>
-"""
-
-# README with setup instructions
-readme_content = """Live Team Tracker - Setup Guide
-
-1. This app uses Firebase Realtime Database + Leaflet.js.
-2. To host it:
-   - Use GitHub Pages or Firebase Hosting.
-3. Firebase Setup:
-   - Your config is already inside index.html
-   - Make sure Realtime Database is enabled.
-4. Open index.html in browser or deploy online.
-"""
-
-# Save files
-with open(os.path.join(project_dir, "index.html"), "w", encoding="utf-8") as f:
-    f.write(html_content)
-
-with open(os.path.join(project_dir, "README.txt"), "w", encoding="utf-8") as f:
-    f.write(readme_content)
-
-# Create zip
-zip_path = "/mnt/data/live_team_tracker.zip"
-with ZipFile(zip_path, 'w') as zipf:
-    zipf.write(os.path.join(project_dir, "index.html"), arcname="index.html")
-    zipf.write(os.path.join(project_dir, "README.txt"), arcname="README.txt")
-
-zip_path
