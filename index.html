@@ -19,23 +19,25 @@
 </head>
 <body>
 
+<!-- নাম ইনপুট -->
 <div id="overlay">
   <h2>আপনার নাম লিখুন</h2>
   <input type="text" id="username" placeholder="যেমনঃ রাহুল">
   <button onclick="startTracking()">Start Tracking</button>
 </div>
 
+<!-- ম্যাপ দেখার জায়গা -->
 <div id="map"></div>
 
 <!-- Leaflet -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- Firebase (non-module version) -->
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-database.js"></script>
 
 <script>
-  // ✅ আপনার Firebase Config এখানে যুক্ত হলো
+  // ✅ Firebase Config (আপনার প্রকৃত কনফিগ যুক্ত)
   const firebaseConfig = {
     apiKey: "AIzaSyAgS3DO8yFpB5gp2eIiyZ8KjZMLgU3S6H4",
     authDomain: "map-api-project-ff783.firebaseapp.com",
@@ -53,11 +55,13 @@
   let map, userName = '', myLocation = null;
   const markers = {};
 
+  // সময় ফরম্যাট
   function formatTime(ms) {
     const d = new Date(ms);
     return d.toLocaleTimeString();
   }
 
+  // দূরত্ব হিসাব
   function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -70,6 +74,7 @@
     return R * c;
   }
 
+  // Tracking শুরু
   function startTracking() {
     const input = document.getElementById("username");
     if (!input.value.trim()) {
@@ -96,10 +101,11 @@
         updateLocation(lat, lng);
       });
     } else {
-      alert("লোকেশন পাওয়া যাচ্ছে না");
+      alert("আপনার ব্রাউজার লোকেশন সাপোর্ট করে না");
     }
   }
 
+  // ম্যাপ শুরু
   function initMap(lat, lng) {
     map = L.map('map').setView([lat, lng], 15);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -107,6 +113,7 @@
     }).addTo(map);
   }
 
+  // Firebase-এ লোকেশন আপডেট
   function updateLocation(lat, lng) {
     const timestamp = Date.now();
     db.ref("users/" + uid).set({
@@ -116,6 +123,7 @@
     });
   }
 
+  // অন্যদের ট্র্যাক করা
   function listenForOthers() {
     db.ref("users").on("value", (snapshot) => {
       const data = snapshot.val();
